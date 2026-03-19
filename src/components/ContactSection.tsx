@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 
+// 1. Skema Validasi Zod
 const contactSchema = z.object({
   name: z.string().trim().min(1, 'Nama harus diisi').max(100, 'Nama terlalu panjang'),
   email: z.string().trim().email('Email tidak valid').max(255, 'Email terlalu panjang'),
@@ -15,42 +16,50 @@ const contactSchema = z.object({
   message: z.string().trim().min(1, 'Pesan harus diisi').max(2000, 'Pesan terlalu panjang'),
 });
 
+// Infer tipe data dari schema untuk TypeScript
+type ContactFormData = z.infer<typeof contactSchema>;
+
 const contactInfo = [
   {
     icon: Mail,
     label: 'Email',
-    value: 'hello@developer.com',
-    href: 'mailto:hello@developer.com',
+    value: 'frozendingin446@gmail.com',
+    href: 'mailto:frozendingin446@gmail.com',
   },
   {
     icon: Phone,
     label: 'Telepon',
-    value: '+62 812 3456 7890',
-    href: 'tel:+6281234567890',
+    value: '+62 882016102410',
+    href: 'tel:+62882016102410',
   },
   {
     icon: MapPin,
     label: 'Lokasi',
-    value: 'Jakarta, Indonesia',
+    value: 'Aceh, Indonesia',
     href: '#',
   },
 ];
 
 export default function ContactSection() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: '',
+  // State awal (Pastikan field kosong untuk production, atau isi seperti di bawah untuk testing)
+  const [formData, setFormData] = useState<ContactFormData>({
+    name: 'Alisa Mahirah',
+    email: 'frozendingin446@gmail.com',
+    subject: 'tugas coding',
+    message: 'semenyeramkan itu coding ges',
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Perbaikan tipe State Errors agar aman saat build
+  const [errors, setErrors] = useState<Partial<Record<keyof ContactFormData, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
+    
+    // Hapus error saat user mulai mengetik ulang
+    if (errors[name as keyof ContactFormData]) {
       setErrors((prev) => ({ ...prev, [name]: '' }));
     }
   };
@@ -61,10 +70,10 @@ export default function ContactSection() {
 
     const result = contactSchema.safeParse(formData);
     if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
+      const fieldErrors: Partial<Record<keyof ContactFormData, string>> = {};
       result.error.errors.forEach((err) => {
         if (err.path[0]) {
-          fieldErrors[err.path[0] as string] = err.message;
+          fieldErrors[err.path[0] as keyof ContactFormData] = err.message;
         }
       });
       setErrors(fieldErrors);
@@ -74,7 +83,7 @@ export default function ContactSection() {
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-contact-email', {
+      const { error } = await supabase.functions.invoke('send-contact-email', {
         body: formData,
       });
 
@@ -85,12 +94,14 @@ export default function ContactSection() {
         description: 'Terima kasih telah menghubungi saya. Saya akan membalas secepatnya.',
       });
 
-      setFormData({ name: '', email: '', subject: '', message: '' });
-    } catch (error: any) {
-      console.error('Error sending email:', error);
+      // Reset form (Hapus komentar ini jika ingin form kosong setelah kirim)
+      // setFormData({ name: '', email: '', subject: '', message: '' });
+      
+    } catch (err: unknown) {
+      console.error('Error sending email:', err);
       toast({
         title: 'Gagal Mengirim',
-        description: 'Terjadi kesalahan. Silakan coba lagi atau hubungi langsung via email.',
+        description: 'Terjadi kesalahan teknis. Silakan coba lagi nanti.',
         variant: 'destructive',
       });
     } finally {
@@ -108,10 +119,8 @@ export default function ContactSection() {
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <span className="text-primary font-medium mb-2 block">Kontak</span>
-          <h2 className="font-display text-3xl md:text-5xl font-bold mb-4">
-            Hubungi Saya
-          </h2>
+          <span className="text-primary font-medium mb-2 block uppercase tracking-widest">Kontak</span>
+          <h2 className="text-3xl md:text-5xl font-bold mb-4">Hubungi Saya</h2>
           <div className="w-20 h-1 bg-primary mx-auto rounded-full" />
         </motion.div>
 
@@ -125,13 +134,10 @@ export default function ContactSection() {
             className="space-y-8"
           >
             <div>
-              <h3 className="font-display text-2xl font-bold mb-4">
-                Mari Berkolaborasi!
-              </h3>
+              <h3 className="text-2xl font-bold mb-4">Mari Berkolaborasi!</h3>
               <p className="text-muted-foreground leading-relaxed">
                 Punya project menarik atau ingin berkolaborasi? Jangan ragu untuk 
-                menghubungi saya. Saya selalu terbuka untuk diskusi tentang project 
-                baru, ide kreatif, atau kesempatan untuk menjadi bagian dari visi Anda.
+                menghubungi saya. Saya selalu terbuka untuk diskusi project baru atau ide kreatif.
               </p>
             </div>
 
@@ -144,13 +150,13 @@ export default function ContactSection() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="flex items-center gap-4 p-4 glass rounded-xl hover:shadow-card-hover transition-all group"
+                  className="flex items-center gap-4 p-4 border rounded-xl hover:bg-accent/50 transition-all group"
                 >
-                  <div className="p-3 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <info.icon className="h-5 w-5 text-primary" />
+                  <div className="p-3 rounded-lg bg-primary/10 group-hover:bg-primary group-hover:text-white transition-all">
+                    <info.icon className="h-5 w-5 text-primary group-hover:text-white" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">{info.label}</p>
+                    <p className="text-xs text-muted-foreground font-bold uppercase">{info.label}</p>
                     <p className="font-medium">{info.value}</p>
                   </div>
                 </motion.a>
@@ -165,28 +171,22 @@ export default function ContactSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <form onSubmit={handleSubmit} className="space-y-6 p-6 glass rounded-2xl shadow-card">
+            <form onSubmit={handleSubmit} className="space-y-6 p-8 border rounded-2xl bg-card shadow-sm">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium">
-                    Nama
-                  </label>
+                  <label htmlFor="name" className="text-sm font-medium">Nama</label>
                   <Input
                     id="name"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="Nama Anda"
-                    className={errors.name ? 'border-destructive' : ''}
+                    className={errors.name ? 'border-destructive focus-visible:ring-destructive' : ''}
                   />
-                  {errors.name && (
-                    <p className="text-xs text-destructive">{errors.name}</p>
-                  )}
+                  {errors.name && <p className="text-[10px] text-destructive font-bold uppercase">{errors.name}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </label>
+                  <label htmlFor="email" className="text-sm font-medium">Email</label>
                   <Input
                     id="email"
                     name="email"
@@ -194,35 +194,27 @@ export default function ContactSection() {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="email@example.com"
-                    className={errors.email ? 'border-destructive' : ''}
+                    className={errors.email ? 'border-destructive focus-visible:ring-destructive' : ''}
                   />
-                  {errors.email && (
-                    <p className="text-xs text-destructive">{errors.email}</p>
-                  )}
+                  {errors.email && <p className="text-[10px] text-destructive font-bold uppercase">{errors.email}</p>}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="subject" className="text-sm font-medium">
-                  Subjek
-                </label>
+                <label htmlFor="subject" className="text-sm font-medium">Subjek</label>
                 <Input
                   id="subject"
                   name="subject"
                   value={formData.subject}
                   onChange={handleChange}
                   placeholder="Subjek pesan"
-                  className={errors.subject ? 'border-destructive' : ''}
+                  className={errors.subject ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
-                {errors.subject && (
-                  <p className="text-xs text-destructive">{errors.subject}</p>
-                )}
+                {errors.subject && <p className="text-[10px] text-destructive font-bold uppercase">{errors.subject}</p>}
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="message" className="text-sm font-medium">
-                  Pesan
-                </label>
+                <label htmlFor="message" className="text-sm font-medium">Pesan</label>
                 <Textarea
                   id="message"
                   name="message"
@@ -230,17 +222,16 @@ export default function ContactSection() {
                   onChange={handleChange}
                   placeholder="Tuliskan pesan Anda..."
                   rows={5}
-                  className={errors.message ? 'border-destructive' : ''}
+                  className={errors.message ? 'border-destructive focus-visible:ring-destructive' : ''}
                 />
-                {errors.message && (
-                  <p className="text-xs text-destructive">{errors.message}</p>
-                )}
+                {errors.message && <p className="text-[10px] text-destructive font-bold uppercase">{errors.message}</p>}
               </div>
 
               <Button
                 type="submit"
                 size="lg"
-                className="w-full rounded-full"
+              
+                className="w-full rounded-xl font-bold"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
